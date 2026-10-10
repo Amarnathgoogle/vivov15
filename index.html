@@ -1,136 +1,277 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="h-full bg-[#0c0d12]">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Command & Monitoring Dashboard</title>
+  <title>Device Telemetry Console</title>
 
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Leaflet Map CSS & JS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            surface: {
+              DEFAULT: '#13151c',
+              elevated: '#1a1d26',
+              border: '#262936',
+              muted: '#7d859a'
+            }
+          },
+          fontFamily: {
+            mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
 
-  <!-- Firebase Compat SDKs -->
+  <!-- Leaflet Map Assets -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+  <!-- Firebase Compat SDKs (Auth + RTDB) -->
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
 
-  <!-- Google Identity & API Client -->
+  <!-- Google Identity Services & GAPI Client -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script src="https://apis.google.com/js/api.js" async defer></script>
 
   <style>
-    #map { height: 380px; width: 100%; border-radius: 0.75rem; }
+    /* Clean Leaflet Theme Customization */
+    .leaflet-container {
+      background: #111319 !important;
+      font-family: inherit;
+    }
+    .leaflet-bar {
+      border: 1px solid #262936 !important;
+      box-shadow: none !important;
+      border-radius: 6px !important;
+      overflow: hidden;
+    }
+    .leaflet-bar a {
+      background-color: #1a1d26 !important;
+      color: #9aa2b6 !important;
+      border-bottom: 1px solid #262936 !important;
+    }
+    .leaflet-bar a:hover {
+      background-color: #262a37 !important;
+      color: #fff !important;
+    }
   </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans">
+<body class="h-full text-slate-200 antialiased font-sans flex flex-col selection:bg-slate-700 selection:text-white">
 
-  <!-- ==================== AUTHENTICATION MODAL ==================== -->
-  <div id="auth-modal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
-    <div class="bg-slate-900 border border-slate-800 p-8 rounded-2xl w-full max-w-md shadow-2xl">
-      <h2 class="text-2xl font-bold text-white mb-2">Dashboard Login</h2>
-      <p class="text-sm text-slate-400 mb-6">Enter your credentials to connect to Firebase Realtime Database.</p>
-      
-      <form id="login-form" class="space-y-4">
-        <div>
-          <label class="block text-xs uppercase tracking-wider text-slate-400 mb-1">Email</label>
-          <input type="email" id="login-email" required class="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-cyan-500">
+  <!-- ============================================================ -->
+  <!-- VIEW 1: AUTHENTICATION SCREEN (Completely isolates the map)  -->
+  <!-- ============================================================ -->
+  <div id="view-auth" class="min-h-screen w-full flex items-center justify-center p-6 bg-[#0c0d12]">
+    <div class="w-full max-w-sm">
+      <!-- Header -->
+      <div class="mb-8">
+        <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-surface border border-surface-border text-xs text-surface-muted mb-4">
+          <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span> Restricted Environment
         </div>
+        <h1 class="text-xl font-semibold text-slate-100 tracking-tight">Telemetry Console</h1>
+        <p class="text-xs text-surface-muted mt-1">Authenticate with your administrative Firebase credentials.</p>
+      </div>
+
+      <!-- Form -->
+      <form id="form-login" class="space-y-4">
         <div>
-          <label class="block text-xs uppercase tracking-wider text-slate-400 mb-1">Password</label>
-          <input type="password" id="login-password" required class="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-cyan-500">
+          <label class="block text-xs font-medium text-slate-400 mb-1.5" for="input-email">Account Email</label>
+          <input 
+            type="email" 
+            id="input-email" 
+            required 
+            autocomplete="email"
+            class="w-full px-3 py-2 bg-surface border border-surface-border rounded-lg text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-slate-400 transition" 
+            placeholder="admin@domain.com"
+          >
         </div>
-        <p id="auth-error" class="text-xs text-rose-500 hidden"></p>
-        <button type="submit" class="w-full py-2.5 bg-cyan-600 hover:bg-cyan-500 transition text-white font-semibold rounded-lg shadow-lg">Authenticate</button>
+
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-1.5" for="input-password">Master Password</label>
+          <input 
+            type="password" 
+            id="input-password" 
+            required 
+            autocomplete="current-password"
+            class="w-full px-3 py-2 bg-surface border border-surface-border rounded-lg text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-slate-400 transition" 
+            placeholder="••••••••••••"
+          >
+        </div>
+
+        <div id="auth-error-banner" class="hidden p-2.5 rounded-lg bg-red-950/40 border border-red-900/60 text-red-400 text-xs"></div>
+
+        <button 
+          type="submit" 
+          id="btn-login-submit"
+          class="w-full mt-2 py-2.5 px-4 bg-slate-100 hover:bg-white text-slate-900 font-medium text-xs rounded-lg transition duration-150 flex items-center justify-center gap-2"
+        >
+          Sign In
+        </button>
       </form>
     </div>
   </div>
 
-  <!-- ==================== MAIN DASHBOARD ==================== -->
-  <header class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between">
-    <div class="flex items-center space-x-3">
-      <div class="h-3 w-3 rounded-full bg-emerald-500 animate-pulse"></div>
-      <h1 class="text-lg font-bold tracking-wide">Device Telemetry & Vault</h1>
-    </div>
-    <div class="flex items-center space-x-4">
-      <span id="user-display" class="text-xs text-slate-400"></span>
-      <button id="logout-btn" class="text-xs px-3 py-1.5 bg-slate-800 hover:bg-rose-900/50 hover:text-rose-300 rounded border border-slate-700 transition">Logout</button>
-    </div>
-  </header>
-
-  <!-- Navigation Tabs -->
-  <div class="bg-slate-900/50 border-b border-slate-800 px-6 flex space-x-6">
-    <button id="tab-live" onclick="switchTab('live')" class="py-3 text-sm font-medium border-b-2 border-cyan-500 text-cyan-400 transition">Section 1: Live Real-Time Feed</button>
-    <button id="tab-drive" onclick="switchTab('drive')" class="py-3 text-sm font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition">Section 2: Google Drive Vault</button>
-  </div>
-
-  <main class="flex-1 p-6 max-w-7xl w-full mx-auto">
-    <!-- ==================== SECTION 1: LIVE FIREBASE FEED ==================== -->
-    <div id="section-live" class="space-y-6">
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl">
-          <p class="text-xs text-slate-400 uppercase tracking-wider">Device Status</p>
-          <p id="stat-status" class="text-xl font-semibold text-emerald-400 mt-1">Listening...</p>
-        </div>
-        <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl">
-          <p class="text-xs text-slate-400 uppercase tracking-wider">Battery Level</p>
-          <p id="stat-battery" class="text-xl font-semibold text-white mt-1">--%</p>
-        </div>
-        <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl">
-          <p class="text-xs text-slate-400 uppercase tracking-wider">Last Coordinates</p>
-          <p id="stat-coords" class="text-sm font-mono text-cyan-400 mt-2 truncate">Waiting for signal</p>
-        </div>
-        <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl">
-          <p class="text-xs text-slate-400 uppercase tracking-wider">Last Updated</p>
-          <p id="stat-time" class="text-sm font-mono text-slate-300 mt-2">--:--:--</p>
-        </div>
+  <!-- ============================================================ -->
+  <!-- VIEW 2: OPERATIONAL DASHBOARD (Hidden until authenticated)   -->
+  <!-- ============================================================ -->
+  <div id="view-dashboard" class="hidden flex-1 flex flex-col min-h-screen">
+    
+    <!-- Top Navigation Header -->
+    <header class="border-b border-surface-border bg-surface px-6 py-3.5 flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <span class="text-sm font-semibold tracking-tight text-white flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          vivo v15 Control Node
+        </span>
+        <span class="text-xs px-2 py-0.5 rounded bg-[#1a1d26] text-surface-muted border border-surface-border font-mono">
+          child-19156
+        </span>
       </div>
 
-      <!-- Map & Realtime Stream Grid -->
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div class="lg:col-span-2 bg-slate-900 border border-slate-800 p-4 rounded-xl">
-          <h3 class="text-sm font-semibold text-slate-300 mb-3">Live Geographic Fix</h3>
-          <div id="map"></div>
-        </div>
+      <div class="flex items-center gap-4 text-xs">
+        <span id="session-user-badge" class="text-surface-muted hidden sm:inline"></span>
+        <button 
+          id="btn-logout" 
+          class="px-2.5 py-1.5 rounded-md border border-surface-border text-slate-400 hover:text-white hover:bg-surface-elevated transition"
+        >
+          Disconnect
+        </button>
+      </div>
+    </header>
 
-        <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl flex flex-col h-[440px]">
-          <h3 class="text-sm font-semibold text-slate-300 mb-3">Incoming Activity Stream</h3>
-          <div id="log-list" class="flex-1 overflow-y-auto space-y-2 pr-2 text-xs font-mono">
-            <div class="text-slate-500 italic">No events received yet...</div>
+    <!-- Sub-navigation Tabs -->
+    <div class="border-b border-surface-border px-6 flex gap-6 bg-[#101217]">
+      <button 
+        id="tab-btn-live" 
+        onclick="setActiveTab('live')" 
+        class="py-3 text-xs font-medium border-b-2 border-white text-white transition flex items-center gap-2"
+      >
+        Live Telemetry & Geolocation
+      </button>
+      <button 
+        id="tab-btn-drive" 
+        onclick="setActiveTab('drive')" 
+        class="py-3 text-xs font-medium border-b-2 border-transparent text-surface-muted hover:text-slate-300 transition flex items-center gap-2"
+      >
+        Google Drive Vault (5 TB)
+      </button>
+    </div>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 p-6 max-w-7xl w-full mx-auto space-y-6">
+
+      <!-- ================= TAB CONTENT 1: LIVE TELEMETRY ================= -->
+      <section id="content-tab-live" class="space-y-6">
+        <!-- Metric Cards -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div class="p-4 rounded-xl bg-surface border border-surface-border">
+            <span class="text-[11px] font-medium text-surface-muted uppercase tracking-wider block">Telemetry Status</span>
+            <div id="stat-ping-status" class="text-base font-medium text-emerald-400 mt-2 flex items-center gap-1.5">
+              Listening...
+            </div>
+          </div>
+
+          <div class="p-4 rounded-xl bg-surface border border-surface-border">
+            <span class="text-[11px] font-medium text-surface-muted uppercase tracking-wider block">Battery Remaining</span>
+            <div id="stat-battery-level" class="text-base font-medium text-slate-100 mt-2 font-mono">
+              --
+            </div>
+          </div>
+
+          <div class="p-4 rounded-xl bg-surface border border-surface-border">
+            <span class="text-[11px] font-medium text-surface-muted uppercase tracking-wider block">Latest GPS Coordinates</span>
+            <div id="stat-coordinates" class="text-xs font-medium text-slate-100 mt-2 font-mono truncate">
+              Awaiting transmission
+            </div>
+          </div>
+
+          <div class="p-4 rounded-xl bg-surface border border-surface-border">
+            <span class="text-[11px] font-medium text-surface-muted uppercase tracking-wider block">Last Transmission</span>
+            <div id="stat-timestamp" class="text-xs font-medium text-slate-300 mt-2 font-mono">
+              --
+            </div>
           </div>
         </div>
-      </div>
-    </div>
 
-    <!-- ==================== SECTION 2: GOOGLE DRIVE VAULT ==================== -->
-    <div id="section-drive" class="hidden space-y-6">
-      <div class="bg-slate-900 border border-slate-800 p-6 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h2 class="text-lg font-bold text-white">5 TB Google Drive Media Vault</h2>
-          <p class="text-sm text-slate-400">Authorize your Google Account to stream photos and media directly from your drive.</p>
+        <!-- Geo Map and Feed Split -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <!-- Leaflet Map Container -->
+          <div class="lg:col-span-2 rounded-xl bg-surface border border-surface-border p-4 flex flex-col">
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-xs font-medium text-slate-300">Live Geographic Fix</span>
+              <button 
+                id="btn-copy-coords" 
+                onclick="copyCoordsToClipboard()" 
+                class="text-[11px] text-surface-muted hover:text-white transition"
+              >
+                Copy Coords
+              </button>
+            </div>
+            <div id="map" class="h-[460px] w-full rounded-lg overflow-hidden border border-surface-border"></div>
+          </div>
+
+          <!-- Activity / Command Stream -->
+          <div class="rounded-xl bg-surface border border-surface-border p-4 flex flex-col h-[505px]">
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-xs font-medium text-slate-300">Inbound Signal Log</span>
+              <span class="text-[10px] text-surface-muted font-mono" id="log-count">0 events</span>
+            </div>
+            <div id="log-container" class="flex-1 overflow-y-auto space-y-2 pr-1 text-[11px] font-mono">
+              <div class="p-3 rounded bg-surface-elevated text-surface-muted text-center">
+                Waiting for incoming packets...
+              </div>
+            </div>
+          </div>
         </div>
-        <div class="flex items-center space-x-3">
-          <button id="btn-auth-drive" onclick="handleDriveAuth()" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium text-sm rounded-lg shadow transition">
-            Connect Google Drive
-          </button>
-          <button id="btn-refresh-drive" onclick="loadDriveMedia()" class="hidden px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm rounded-lg border border-slate-700 transition">
-            Refresh Files
-          </button>
+      </section>
+
+      <!-- ================= TAB CONTENT 2: GOOGLE DRIVE VAULT ================= -->
+      <section id="content-tab-drive" class="hidden space-y-6">
+        <div class="p-5 rounded-xl bg-surface border border-surface-border flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h2 class="text-sm font-semibold text-white">Google Drive Primary Media Vault</h2>
+            <p class="text-xs text-surface-muted mt-0.5">Stream surveillance captures without consuming Firebase quota.</p>
+          </div>
+          <div class="flex items-center gap-3">
+            <button 
+              id="btn-drive-connect" 
+              onclick="initiateDriveAuth()" 
+              class="px-4 py-2 bg-slate-100 hover:bg-white text-slate-900 text-xs font-medium rounded-lg transition"
+            >
+              Connect Drive Account
+            </button>
+            <button 
+              id="btn-drive-refresh" 
+              onclick="fetchDriveMediaFiles()" 
+              class="hidden px-3 py-2 bg-surface-elevated hover:bg-surface-border text-slate-300 text-xs rounded-lg border border-surface-border transition"
+            >
+              Refresh Vault
+            </button>
+          </div>
         </div>
-      </div>
 
-      <!-- Gallery Grid -->
-      <div id="drive-loading" class="hidden text-center py-12 text-slate-500">Loading files from Google Drive...</div>
-      <div id="drive-gallery" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        <!-- Media cards will render here dynamically -->
-      </div>
-    </div>
-  </main>
+        <!-- Files Grid -->
+        <div id="drive-status-message" class="hidden text-center py-12 text-xs text-surface-muted font-mono"></div>
+        <div id="drive-media-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+          <!-- Rendered media items -->
+        </div>
+      </section>
 
+    </main>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- APPLICATION ENGINE SCRIPT                                    -->
+  <!-- ============================================================ -->
   <script>
-    // ==================== CONFIGURATION ====================
-    // Replace with your actual Firebase Project Configuration
+    // 1. HARDCODED CREDENTIALS
     const firebaseConfig = {
       apiKey: "AIzaSyA63YrQHAhg-6e4fwWlzH64Cu5aNCal3M0",
       authDomain: "child-19156.firebaseapp.com",
@@ -141,187 +282,282 @@
       appId: "1:162154407772:web:673ec2f60e07c9b8d5c399"
     };
 
-    // Google Drive OAuth Configuration
     const GOOGLE_CLIENT_ID = "48947527907-ppg7nn5urqrk96t0am1fqb4div1d7skr.apps.googleusercontent.com";
     const GOOGLE_API_KEY = "AIzaSyA63YrQHAhg-6e4fwWlzH64Cu5aNCal3M0";
     const DRIVE_DISCOVERY_DOC = "https://www.googleapis.com/discovery/v1/apis/drive/v3/rest";
     const DRIVE_SCOPES = "https://www.googleapis.com/auth/drive.readonly";
 
-    // ==================== INITIALIZATION ====================
+    // 2. INITIALIZATION
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
-    const database = firebase.database();
+    const db = firebase.database();
 
-    // Leaflet Map Setup
-    let map = L.map('map').setView([17.3850, 78.4867], 13); // Default view
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '© OpenStreetMap'
-    }).addTo(map);
-    let marker = null;
+    let mapInstance = null;
+    let mapMarker = null;
+    let driveTokenClient = null;
+    let isGapiLoaded = false;
+    let totalLogsCount = 0;
+    let latestCoordsCache = null;
 
-    // ==================== AUTHENTICATION FLOW ====================
-    const authModal = document.getElementById('auth-modal');
-    const loginForm = document.getElementById('login-form');
-    const authError = document.getElementById('auth-error');
+    // DOM Elements
+    const viewAuth = document.getElementById('view-auth');
+    const viewDashboard = document.getElementById('view-dashboard');
+    const formLogin = document.getElementById('form-login');
+    const authErrorBanner = document.getElementById('auth-error-banner');
+    const btnLoginSubmit = document.getElementById('btn-login-submit');
 
-    loginForm.addEventListener('submit', (e) => {
+    // 3. AUTHENTICATION LIFECYCLE
+    formLogin.addEventListener('submit', (e) => {
       e.preventDefault();
-      authError.classList.add('hidden');
-      const email = document.getElementById('login-email').value;
-      const pass = document.getElementById('login-password').value;
+      authErrorBanner.classList.add('hidden');
+      btnLoginSubmit.disabled = true;
+      btnLoginSubmit.textContent = 'Authenticating...';
+
+      const email = document.getElementById('input-email').value;
+      const pass = document.getElementById('input-password').value;
 
       auth.signInWithEmailAndPassword(email, pass)
         .catch(err => {
-          authError.textContent = err.message;
-          authError.classList.remove('hidden');
+          authErrorBanner.textContent = err.message;
+          authErrorBanner.classList.remove('hidden');
+          btnLoginSubmit.disabled = false;
+          btnLoginSubmit.textContent = 'Sign In';
         });
     });
 
-    document.getElementById('logout-btn').addEventListener('click', () => auth.signOut());
+    document.getElementById('btn-logout').addEventListener('click', () => {
+      auth.signOut();
+    });
 
     auth.onAuthStateChanged((user) => {
       if (user) {
-        authModal.classList.add('hidden');
-        document.getElementById('user-display').textContent = user.email;
-        initRealtimeListener();
+        // Mount Dashboard, Dismount Login Screen
+        viewAuth.classList.add('hidden');
+        viewDashboard.classList.remove('hidden');
+        document.getElementById('session-user-badge').textContent = user.email;
+
+        // Lazy initialize the map only when the dashboard container is visible
+        setupLeafletMap();
+        listenToFirebaseTelemetry();
       } else {
-        authModal.classList.remove('hidden');
+        // Dismount Dashboard, Mount Login Screen
+        viewDashboard.classList.add('hidden');
+        viewAuth.classList.remove('hidden');
+        btnLoginSubmit.disabled = false;
+        btnLoginSubmit.textContent = 'Sign In';
+
+        // Tear down map instance to prevent memory leaks or z-index collisions
+        if (mapInstance) {
+          mapInstance.remove();
+          mapInstance = null;
+          mapMarker = null;
+        }
       }
     });
 
-    // ==================== SECTION 1: REALTIME LISTENER ====================
-    function initRealtimeListener() {
-      const deviceRef = database.ref('devices/vivo_v15/latest');
+    // 4. MAP SETUP (Executed ONLY inside authenticated scope)
+    function setupLeafletMap() {
+      if (mapInstance) return;
 
-      deviceRef.on('value', (snapshot) => {
-        const data = snapshot.val();
-        if (!data) return;
+      // Default viewport: Hyderabad (17.3850° N, 78.4867° E)
+      mapInstance = L.map('map', {
+        zoomControl: true,
+        attributionControl: false
+      }).setView([17.3850, 78.4867], 13);
 
-        // Update top metrics
-        document.getElementById('stat-status').textContent = 'Online / Active';
-        document.getElementById('stat-battery').textContent = (data.battery || '--') + '%';
-        document.getElementById('stat-coords').textContent = `${data.latitude || 0}, ${data.longitude || 0}`;
-        document.getElementById('stat-time').textContent = data.timestamp ? new Date(data.timestamp).toLocaleTimeString() : '--';
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        maxZoom: 19
+      }).addTo(mapInstance);
 
-        // Update Map Marker
-        if (data.latitude && data.longitude) {
-          const coords = [data.latitude, data.longitude];
-          if (!marker) {
-            marker = L.marker(coords).addTo(map);
+      // Force recalculation of map dimensions
+      setTimeout(() => {
+        mapInstance.invalidateSize();
+      }, 200);
+    }
+
+    // 5. FIREBASE REALTIME LISTENER
+    function listenToFirebaseTelemetry() {
+      const nodeRef = db.ref('devices/vivo_v15/latest');
+
+      nodeRef.on('value', (snapshot) => {
+        const payload = snapshot.val();
+        if (!payload) return;
+
+        // 1. Update Metrics
+        document.getElementById('stat-ping-status').textContent = 'Signal Active';
+        document.getElementById('stat-battery-level').textContent = (payload.battery ?? '--') + '%';
+        
+        const timestampStr = payload.timestamp 
+          ? new Date(payload.timestamp).toLocaleTimeString() 
+          : new Date().toLocaleTimeString();
+        document.getElementById('stat-timestamp').textContent = timestampStr;
+
+        // 2. Coordinates & Map Pin
+        if (payload.latitude && payload.longitude) {
+          latestCoordsCache = `${payload.latitude}, ${payload.longitude}`;
+          document.getElementById('stat-coordinates').textContent = latestCoordsCache;
+
+          const latLng = [payload.latitude, payload.longitude];
+          if (!mapMarker) {
+            mapMarker = L.circleMarker(latLng, {
+              radius: 7,
+              fillColor: "#10b981",
+              color: "#ffffff",
+              weight: 2,
+              opacity: 1,
+              fillOpacity: 0.9
+            }).addTo(mapInstance);
           } else {
-            marker.setLatLng(coords);
+            mapMarker.setLatLng(latLng);
           }
-          map.panTo(coords);
+          mapInstance.panTo(latLng);
         }
 
-        // Prepend to event log
-        const logList = document.getElementById('log-list');
-        const entry = document.createElement('div');
-        entry.className = "bg-slate-800/60 p-2 rounded border border-slate-700/50 flex flex-col gap-1";
-        entry.innerHTML = `
-          <div class="flex justify-between text-slate-400">
-            <span>[SYNC] Fix Updated</span>
-            <span>${new Date().toLocaleTimeString()}</span>
-          </div>
-          <span class="text-cyan-300">Lat: ${data.latitude}, Lng: ${data.longitude}</span>
-          ${data.drive_file_id ? `<span class="text-emerald-400">Drive File: ${data.drive_file_id}</span>` : ''}
-        `;
-        logList.prepend(entry);
+        // 3. Append to Inbound Signal Log
+        appendLogEntry(payload, timestampStr);
+      }, (error) => {
+        console.error('Firebase DB read error:', error);
       });
     }
 
-    // ==================== TABS SWITCHING ====================
-    function switchTab(tab) {
-      const tabLive = document.getElementById('tab-live');
-      const tabDrive = document.getElementById('tab-drive');
-      const secLive = document.getElementById('section-live');
-      const secDrive = document.getElementById('section-drive');
+    function appendLogEntry(data, time) {
+      const container = document.getElementById('log-container');
+      if (totalLogsCount === 0) container.innerHTML = '';
+      totalLogsCount++;
+      document.getElementById('log-count').textContent = `${totalLogsCount} events`;
+
+      const row = document.createElement('div');
+      row.className = "p-2.5 rounded bg-surface-elevated border border-surface-border text-slate-300";
+      row.innerHTML = `
+        <div class="flex items-center justify-between text-surface-muted text-[10px] mb-1">
+          <span class="text-emerald-400 font-medium">PACKET_OK</span>
+          <span>${time}</span>
+        </div>
+        <div>Coords: ${data.latitude ?? 'N/A'}, ${data.longitude ?? 'N/A'}</div>
+        ${data.drive_file_id ? `<div class="text-amber-400 mt-1 truncate">Drive ID: ${data.drive_file_id}</div>` : ''}
+      `;
+      container.prepend(row);
+    }
+
+    function copyCoordsToClipboard() {
+      if (!latestCoordsCache) return;
+      navigator.clipboard.writeText(latestCoordsCache);
+      const btn = document.getElementById('btn-copy-coords');
+      btn.textContent = 'Copied!';
+      setTimeout(() => { btn.textContent = 'Copy Coords'; }, 1500);
+    }
+
+    // 6. TAB SWITCHING
+    function setActiveTab(tab) {
+      const btnLive = document.getElementById('tab-btn-live');
+      const btnDrive = document.getElementById('tab-btn-drive');
+      const contentLive = document.getElementById('content-tab-live');
+      const contentDrive = document.getElementById('content-tab-drive');
 
       if (tab === 'live') {
-        tabLive.className = "py-3 text-sm font-medium border-b-2 border-cyan-500 text-cyan-400 transition";
-        tabDrive.className = "py-3 text-sm font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition";
-        secLive.classList.remove('hidden');
-        secDrive.classList.add('hidden');
-        map.invalidateSize();
+        btnLive.className = "py-3 text-xs font-medium border-b-2 border-white text-white transition flex items-center gap-2";
+        btnDrive.className = "py-3 text-xs font-medium border-b-2 border-transparent text-surface-muted hover:text-slate-300 transition flex items-center gap-2";
+        contentLive.classList.remove('hidden');
+        contentDrive.classList.add('hidden');
+        if (mapInstance) mapInstance.invalidateSize();
       } else {
-        tabDrive.className = "py-3 text-sm font-medium border-b-2 border-cyan-500 text-cyan-400 transition";
-        tabLive.className = "py-3 text-sm font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition";
-        secDrive.classList.remove('hidden');
-        secLive.classList.add('hidden');
+        btnDrive.className = "py-3 text-xs font-medium border-b-2 border-white text-white transition flex items-center gap-2";
+        btnLive.className = "py-3 text-xs font-medium border-b-2 border-transparent text-surface-muted hover:text-slate-300 transition flex items-center gap-2";
+        contentDrive.classList.remove('hidden');
+        contentLive.classList.add('hidden');
       }
     }
 
-    // ==================== SECTION 2: GOOGLE DRIVE API ====================
-    let tokenClient;
-    let gapiInited = false;
-    let gisInited = false;
-
+    // 7. GOOGLE DRIVE CLIENT SDK INTEGRATION
     window.addEventListener('load', () => {
-      gapi.load('client', () => {
-        gapi.client.init({
+      // Initialize GAPI
+      gapi.load('client', async () => {
+        await gapi.client.init({
           apiKey: GOOGLE_API_KEY,
-          discoveryDocs: [DRIVE_DISCOVERY_DOC],
-        }).then(() => { gapiInited = true; });
+          discoveryDocs: [DRIVE_DISCOVERY_DOC]
+        });
+        isGapiLoaded = true;
       });
 
-      tokenClient = google.accounts.oauth2.initTokenClient({
+      // Initialize GIS Token Client
+      driveTokenClient = google.accounts.oauth2.initTokenClient({
         client_id: GOOGLE_CLIENT_ID,
         scope: DRIVE_SCOPES,
-        callback: (resp) => {
-          if (resp.error) return console.error(resp);
-          document.getElementById('btn-auth-drive').classList.add('hidden');
-          document.getElementById('btn-refresh-drive').classList.remove('hidden');
-          loadDriveMedia();
-        },
+        callback: (response) => {
+          if (response.error) {
+            console.error('Google Auth Error:', response);
+            return;
+          }
+          document.getElementById('btn-drive-connect').classList.add('hidden');
+          document.getElementById('btn-drive-refresh').classList.remove('hidden');
+          fetchDriveMediaFiles();
+        }
       });
     });
 
-    function handleDriveAuth() {
-      tokenClient.requestAccessToken({ prompt: 'consent' });
+    function initiateDriveAuth() {
+      if (!driveTokenClient) return;
+      driveTokenClient.requestAccessToken({ prompt: 'consent' });
     }
 
-    async function loadDriveMedia() {
-      const gallery = document.getElementById('drive-gallery');
-      const loader = document.getElementById('drive-loading');
-      loader.classList.remove('hidden');
-      gallery.innerHTML = '';
+    async function fetchDriveMediaFiles() {
+      const grid = document.getElementById('drive-media-grid');
+      const statusMsg = document.getElementById('drive-status-message');
+      
+      statusMsg.textContent = 'Querying Google Drive files...';
+      statusMsg.classList.remove('hidden');
+      grid.innerHTML = '';
 
       try {
-        // Query images from Google Drive
         const response = await gapi.client.drive.files.list({
-          pageSize: 24,
-          fields: 'files(id, name, mimeType, thumbnailLink, webViewLink, createdTime)',
+          pageSize: 30,
+          fields: 'files(id, name, mimeType, thumbnailLink, webViewLink, createdTime, size)',
           q: "mimeType contains 'image/' and trashed = false",
           orderBy: 'createdTime desc'
         });
 
-        loader.classList.add('hidden');
+        statusMsg.classList.add('hidden');
         const files = response.result.files;
 
         if (!files || files.length === 0) {
-          gallery.innerHTML = `<div class="col-span-full text-center text-slate-500 py-8">No photos found in Drive matching filter.</div>`;
+          statusMsg.textContent = 'No surveillance media found in Drive.';
+          statusMsg.classList.remove('hidden');
           return;
         }
 
         files.forEach(file => {
           const card = document.createElement('div');
-          card.className = "bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow";
+          card.className = "rounded-xl bg-surface border border-surface-border overflow-hidden flex flex-col";
           card.innerHTML = `
-            <div class="h-40 bg-slate-950 flex items-center justify-center overflow-hidden">
-              <img src="${file.thumbnailLink || 'https://via.placeholder.com/150'}" alt="${file.name}" class="w-full h-full object-cover">
+            <div class="h-32 bg-[#0a0b0e] flex items-center justify-center overflow-hidden border-b border-surface-border">
+              <img 
+                src="${file.thumbnailLink || 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22/>'}" 
+                alt="${file.name}"
+                class="w-full h-full object-cover"
+                loading="lazy"
+              >
             </div>
-            <div class="p-3">
-              <p class="text-xs text-white truncate font-medium">${file.name}</p>
-              <p class="text-[10px] text-slate-400 mt-1">${new Date(file.createdTime).toLocaleString()}</p>
-              <a href="${file.webViewLink}" target="_blank" class="block text-center mt-2 text-xs py-1.5 bg-slate-800 hover:bg-slate-700 text-cyan-400 rounded transition">View in Drive</a>
+            <div class="p-3 flex-1 flex flex-col justify-between">
+              <div>
+                <p class="text-xs text-slate-200 font-medium truncate">${file.name}</p>
+                <p class="text-[10px] text-surface-muted mt-1 font-mono">${new Date(file.createdTime).toLocaleDateString()}</p>
+              </div>
+              <a 
+                href="${file.webViewLink}" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                class="mt-3 block text-center py-1.5 px-2 bg-surface-elevated hover:bg-surface-border text-slate-300 text-[11px] rounded transition"
+              >
+                Inspect
+              </a>
             </div>
           `;
-          gallery.appendChild(card);
+          grid.appendChild(card);
         });
       } catch (err) {
-        loader.classList.add('hidden');
-        console.error('Drive query error:', err);
+        statusMsg.textContent = 'Drive request rejected. Check console.';
+        statusMsg.classList.remove('hidden');
+        console.error('Failed to query Drive:', err);
       }
     }
   </script>
