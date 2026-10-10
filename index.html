@@ -36,9 +36,8 @@
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
 
-  <!-- Google Identity Services & GAPI Client -->
+  <!-- Google Identity Services (Modern OAuth only, no legacy gapi) -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
-  <script src="https://apis.google.com/js/api.js" async defer></script>
 
   <style>
     .leaflet-container {
@@ -60,7 +59,6 @@
       background-color: #262a37 !important;
       color: #fff !important;
     }
-    /* Dark-mode inverted filter for free OpenStreetMap tiles */
     .leaflet-tile-pane {
       filter: brightness(0.65) invert(1) contrast(2.2) hue-rotate(200deg) saturate(0.25) brightness(0.75);
     }
@@ -268,8 +266,6 @@
     };
 
     const GOOGLE_CLIENT_ID = "162154407772-vc6dfk7gaofc6i528i4dvqde0hjbdvv4.apps.googleusercontent.com";
-    const GOOGLE_API_KEY = "AIzaSyCTVC6ByrsFQuYUyWDBsS367w17RiL8ZvM";
-    const DRIVE_DISCOVERY_DOC = "https://www.googleapis.com/discovery/v1/apis/drive/v3/rest";
     const DRIVE_SCOPES = "https://www.googleapis.com/auth/drive.readonly";
 
     firebase.initializeApp(firebaseConfig);
@@ -279,7 +275,7 @@
     let mapInstance = null;
     let mapMarker = null;
     let driveTokenClient = null;
-    let isGapiLoaded = false;
+    let driveAccessToken = null;
     let totalLogsCount = 0;
     let latestCoordsCache = null;
 
@@ -341,7 +337,6 @@
         attributionControl: false
       }).setView([17.3850, 78.4867], 13);
 
-      // Free OpenStreetMap Tiles - No API Key Required
       L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19
       }).addTo(mapInstance);
@@ -439,20 +434,8 @@
       }
     }
 
-    // Google Identity Services & GAPI Client
+    // ==================== MODERN GOOGLE DRIVE SYNC (Direct fetch) ====================
     window.addEventListener('load', () => {
-      gapi.load('client', async () => {
-        try {
-          await gapi.client.init({
-            apiKey: GOOGLE_API_KEY,
-            discoveryDocs: [DRIVE_DISCOVERY_DOC]
-          });
-          isGapiLoaded = true;
-        } catch (err) {
-          console.error('Failed to init GAPI client:', err);
-        }
-      });
-
       driveTokenClient = google.accounts.oauth2.initTokenClient({
         client_id: GOOGLE_CLIENT_ID,
         scope: DRIVE_SCOPES,
@@ -462,9 +445,7 @@
             return;
           }
 
-          // Attach received access token to gapi client
-          gapi.client.setToken(response);
-
+          driveAccessToken = response.access_token;
           document.getElementById('btn-drive-connect').classList.add('hidden');
           document.getElementById('btn-drive-refresh').classList.remove('hidden');
           
@@ -479,6 +460,8 @@
     }
 
     async function fetchDriveMediaFiles() {
+      if (!driveAccessToken) return;
+
       const grid = document.getElementById('drive-media-grid');
       const statusMsg = document.getElementById('drive-status-message');
       
@@ -487,15 +470,28 @@
       grid.innerHTML = '';
 
       try {
-        const response = await gapi.client.drive.files.list({
-          pageSize: 30,
+        const queryParams = new URLSearchParams({
+          pageSize: '30',
           fields: 'files(id, name, mimeType, thumbnailLink, webViewLink, createdTime, size)',
           q: "mimeType contains 'image/' and trashed = false",
           orderBy: 'createdTime desc'
         });
 
+        // Direct fetch without gapi dependency
+        const res = await fetch(`https://www.googleapis.com/drive/v3/files?${queryParams.toString()}`, {
+          headers: {
+            'Authorization': `Bearer ${driveAccessToken}`
+          }
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData?.error?.message || `HTTP ${res.status}`);
+        }
+
+        const data = await res.json();
         statusMsg.classList.add('hidden');
-        const files = response?.result?.files;
+        const files = data.files;
 
         if (!files || files.length === 0) {
           statusMsg.textContent = 'No photos found in Drive matching filter.';
@@ -533,7 +529,7 @@
           grid.appendChild(card);
         });
       } catch (err) {
-        statusMsg.textContent = 'Drive request rejected. Check console.';
+        statusMsg.textContent = `Drive request failed: ${err.message}`;
         statusMsg.classList.remove('hidden');
         console.error('Failed to query Drive:', err);
       }
