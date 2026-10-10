@@ -41,7 +41,6 @@
   <script src="https://apis.google.com/js/api.js" async defer></script>
 
   <style>
-    /* Clean Leaflet Theme Customization */
     .leaflet-container {
       background: #111319 !important;
       font-family: inherit;
@@ -65,12 +64,9 @@
 </head>
 <body class="h-full text-slate-200 antialiased font-sans flex flex-col selection:bg-slate-700 selection:text-white">
 
-  <!-- ============================================================ -->
-  <!-- VIEW 1: AUTHENTICATION SCREEN (Completely isolates the map)  -->
-  <!-- ============================================================ -->
+  <!-- ==================== VIEW 1: AUTHENTICATION SCREEN ==================== -->
   <div id="view-auth" class="min-h-screen w-full flex items-center justify-center p-6 bg-[#0c0d12]">
     <div class="w-full max-w-sm">
-      <!-- Header -->
       <div class="mb-8">
         <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-surface border border-surface-border text-xs text-surface-muted mb-4">
           <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span> Restricted Environment
@@ -79,7 +75,6 @@
         <p class="text-xs text-surface-muted mt-1">Authenticate with your administrative Firebase credentials.</p>
       </div>
 
-      <!-- Form -->
       <form id="form-login" class="space-y-4">
         <div>
           <label class="block text-xs font-medium text-slate-400 mb-1.5" for="input-email">Account Email</label>
@@ -118,12 +113,9 @@
     </div>
   </div>
 
-  <!-- ============================================================ -->
-  <!-- VIEW 2: OPERATIONAL DASHBOARD (Hidden until authenticated)   -->
-  <!-- ============================================================ -->
+  <!-- ==================== VIEW 2: OPERATIONAL DASHBOARD ==================== -->
   <div id="view-dashboard" class="hidden flex-1 flex flex-col min-h-screen">
     
-    <!-- Top Navigation Header -->
     <header class="border-b border-surface-border bg-surface px-6 py-3.5 flex items-center justify-between">
       <div class="flex items-center gap-4">
         <span class="text-sm font-semibold tracking-tight text-white flex items-center gap-2">
@@ -146,7 +138,6 @@
       </div>
     </header>
 
-    <!-- Sub-navigation Tabs -->
     <div class="border-b border-surface-border px-6 flex gap-6 bg-[#101217]">
       <button 
         id="tab-btn-live" 
@@ -164,12 +155,10 @@
       </button>
     </div>
 
-    <!-- Main Content Area -->
     <main class="flex-1 p-6 max-w-7xl w-full mx-auto space-y-6">
 
-      <!-- ================= TAB CONTENT 1: LIVE TELEMETRY ================= -->
+      <!-- SECTION 1: LIVE FEED -->
       <section id="content-tab-live" class="space-y-6">
-        <!-- Metric Cards -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div class="p-4 rounded-xl bg-surface border border-surface-border">
             <span class="text-[11px] font-medium text-surface-muted uppercase tracking-wider block">Telemetry Status</span>
@@ -200,9 +189,7 @@
           </div>
         </div>
 
-        <!-- Geo Map and Feed Split -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <!-- Leaflet Map Container -->
           <div class="lg:col-span-2 rounded-xl bg-surface border border-surface-border p-4 flex flex-col">
             <div class="flex items-center justify-between mb-3">
               <span class="text-xs font-medium text-slate-300">Live Geographic Fix</span>
@@ -217,7 +204,6 @@
             <div id="map" class="h-[460px] w-full rounded-lg overflow-hidden border border-surface-border"></div>
           </div>
 
-          <!-- Activity / Command Stream -->
           <div class="rounded-xl bg-surface border border-surface-border p-4 flex flex-col h-[505px]">
             <div class="flex items-center justify-between mb-3">
               <span class="text-xs font-medium text-slate-300">Inbound Signal Log</span>
@@ -232,7 +218,7 @@
         </div>
       </section>
 
-      <!-- ================= TAB CONTENT 2: GOOGLE DRIVE VAULT ================= -->
+      <!-- SECTION 2: GOOGLE DRIVE -->
       <section id="content-tab-drive" class="hidden space-y-6">
         <div class="p-5 rounded-xl bg-surface border border-surface-border flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
@@ -257,37 +243,31 @@
           </div>
         </div>
 
-        <!-- Files Grid -->
         <div id="drive-status-message" class="hidden text-center py-12 text-xs text-surface-muted font-mono"></div>
-        <div id="drive-media-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-          <!-- Rendered media items -->
-        </div>
+        <div id="drive-media-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4"></div>
       </section>
 
     </main>
   </div>
 
-  <!-- ============================================================ -->
-  <!-- APPLICATION ENGINE SCRIPT                                    -->
-  <!-- ============================================================ -->
+  <!-- ==================== LOGIC ENGINE ==================== -->
   <script>
-    // 1. HARDCODED CREDENTIALS
     const firebaseConfig = {
-      apiKey: "AIzaSyA63YrQHAhg-6e4fwWlzH64Cu5aNCal3M0",
+      apiKey: "AIzaSyCTVC6ByrsFQuYUyWDBsS367w17RiL8ZvM",
       authDomain: "child-19156.firebaseapp.com",
       databaseURL: "https://child-19156-default-rtdb.firebaseio.com",
       projectId: "child-19156",
       storageBucket: "child-19156.firebasestorage.app",
       messagingSenderId: "162154407772",
-      appId: "1:162154407772:web:673ec2f60e07c9b8d5c399"
+      appId: "1:162154407772:web:673ec2f60e07c9b8d5c399",
+      measurementId: "G-7L275X0WJX"
     };
 
     const GOOGLE_CLIENT_ID = "48947527907-ppg7nn5urqrk96t0am1fqb4div1d7skr.apps.googleusercontent.com";
-    const GOOGLE_API_KEY = "AIzaSyA63YrQHAhg-6e4fwWlzH64Cu5aNCal3M0";
+    const GOOGLE_API_KEY = "AIzaSyCTVC6ByrsFQuYUyWDBsS367w17RiL8ZvM";
     const DRIVE_DISCOVERY_DOC = "https://www.googleapis.com/discovery/v1/apis/drive/v3/rest";
     const DRIVE_SCOPES = "https://www.googleapis.com/auth/drive.readonly";
 
-    // 2. INITIALIZATION
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
     const db = firebase.database();
@@ -299,14 +279,12 @@
     let totalLogsCount = 0;
     let latestCoordsCache = null;
 
-    // DOM Elements
     const viewAuth = document.getElementById('view-auth');
     const viewDashboard = document.getElementById('view-dashboard');
     const formLogin = document.getElementById('form-login');
     const authErrorBanner = document.getElementById('auth-error-banner');
     const btnLoginSubmit = document.getElementById('btn-login-submit');
 
-    // 3. AUTHENTICATION LIFECYCLE
     formLogin.addEventListener('submit', (e) => {
       e.preventDefault();
       authErrorBanner.classList.add('hidden');
@@ -331,22 +309,18 @@
 
     auth.onAuthStateChanged((user) => {
       if (user) {
-        // Mount Dashboard, Dismount Login Screen
         viewAuth.classList.add('hidden');
         viewDashboard.classList.remove('hidden');
         document.getElementById('session-user-badge').textContent = user.email;
 
-        // Lazy initialize the map only when the dashboard container is visible
         setupLeafletMap();
         listenToFirebaseTelemetry();
       } else {
-        // Dismount Dashboard, Mount Login Screen
         viewDashboard.classList.add('hidden');
         viewAuth.classList.remove('hidden');
         btnLoginSubmit.disabled = false;
         btnLoginSubmit.textContent = 'Sign In';
 
-        // Tear down map instance to prevent memory leaks or z-index collisions
         if (mapInstance) {
           mapInstance.remove();
           mapInstance = null;
@@ -355,11 +329,9 @@
       }
     });
 
-    // 4. MAP SETUP (Executed ONLY inside authenticated scope)
     function setupLeafletMap() {
       if (mapInstance) return;
 
-      // Default viewport: Hyderabad (17.3850° N, 78.4867° E)
       mapInstance = L.map('map', {
         zoomControl: true,
         attributionControl: false
@@ -369,13 +341,11 @@
         maxZoom: 19
       }).addTo(mapInstance);
 
-      // Force recalculation of map dimensions
       setTimeout(() => {
         mapInstance.invalidateSize();
       }, 200);
     }
 
-    // 5. FIREBASE REALTIME LISTENER
     function listenToFirebaseTelemetry() {
       const nodeRef = db.ref('devices/vivo_v15/latest');
 
@@ -383,7 +353,6 @@
         const payload = snapshot.val();
         if (!payload) return;
 
-        // 1. Update Metrics
         document.getElementById('stat-ping-status').textContent = 'Signal Active';
         document.getElementById('stat-battery-level').textContent = (payload.battery ?? '--') + '%';
         
@@ -392,7 +361,6 @@
           : new Date().toLocaleTimeString();
         document.getElementById('stat-timestamp').textContent = timestampStr;
 
-        // 2. Coordinates & Map Pin
         if (payload.latitude && payload.longitude) {
           latestCoordsCache = `${payload.latitude}, ${payload.longitude}`;
           document.getElementById('stat-coordinates').textContent = latestCoordsCache;
@@ -413,7 +381,6 @@
           mapInstance.panTo(latLng);
         }
 
-        // 3. Append to Inbound Signal Log
         appendLogEntry(payload, timestampStr);
       }, (error) => {
         console.error('Firebase DB read error:', error);
@@ -447,7 +414,6 @@
       setTimeout(() => { btn.textContent = 'Copy Coords'; }, 1500);
     }
 
-    // 6. TAB SWITCHING
     function setActiveTab(tab) {
       const btnLive = document.getElementById('tab-btn-live');
       const btnDrive = document.getElementById('tab-btn-drive');
@@ -468,9 +434,7 @@
       }
     }
 
-    // 7. GOOGLE DRIVE CLIENT SDK INTEGRATION
     window.addEventListener('load', () => {
-      // Initialize GAPI
       gapi.load('client', async () => {
         await gapi.client.init({
           apiKey: GOOGLE_API_KEY,
@@ -479,7 +443,6 @@
         isGapiLoaded = true;
       });
 
-      // Initialize GIS Token Client
       driveTokenClient = google.accounts.oauth2.initTokenClient({
         client_id: GOOGLE_CLIENT_ID,
         scope: DRIVE_SCOPES,
