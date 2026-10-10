@@ -60,6 +60,10 @@
       background-color: #262a37 !important;
       color: #fff !important;
     }
+    /* Dark-mode inverted filter for free OpenStreetMap tiles */
+    .leaflet-tile-pane {
+      filter: brightness(0.65) invert(1) contrast(2.2) hue-rotate(200deg) saturate(0.25) brightness(0.75);
+    }
   </style>
 </head>
 <body class="h-full text-slate-200 antialiased font-sans flex flex-col selection:bg-slate-700 selection:text-white">
@@ -223,7 +227,7 @@
         <div class="p-5 rounded-xl bg-surface border border-surface-border flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h2 class="text-sm font-semibold text-white">Google Drive Primary Media Vault</h2>
-            <p class="text-xs text-surface-muted mt-0.5">Stream surveillance captures without consuming Firebase quota.</p>
+            <p class="text-xs text-surface-muted mt-0.5">Stream surveillance captures directly from Google Drive.</p>
           </div>
           <div class="flex items-center gap-3">
             <button 
@@ -263,7 +267,7 @@
       measurementId: "G-7L275X0WJX"
     };
 
-    const GOOGLE_CLIENT_ID = "48947527907-ppg7nn5urqrk96t0am1fqb4div1d7skr.apps.googleusercontent.com";
+    const GOOGLE_CLIENT_ID = "162154407772-vc6dfk7gaofc6i528i4dvqde0hjbdvv4.apps.googleusercontent.com";
     const GOOGLE_API_KEY = "AIzaSyCTVC6ByrsFQuYUyWDBsS367w17RiL8ZvM";
     const DRIVE_DISCOVERY_DOC = "https://www.googleapis.com/discovery/v1/apis/drive/v3/rest";
     const DRIVE_SCOPES = "https://www.googleapis.com/auth/drive.readonly";
@@ -337,7 +341,8 @@
         attributionControl: false
       }).setView([17.3850, 78.4867], 13);
 
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      // Free OpenStreetMap Tiles - No API Key Required
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19
       }).addTo(mapInstance);
 
@@ -434,26 +439,36 @@
       }
     }
 
+    // Google Identity Services & GAPI Client
     window.addEventListener('load', () => {
       gapi.load('client', async () => {
-        await gapi.client.init({
-          apiKey: GOOGLE_API_KEY,
-          discoveryDocs: [DRIVE_DISCOVERY_DOC]
-        });
-        isGapiLoaded = true;
+        try {
+          await gapi.client.init({
+            apiKey: GOOGLE_API_KEY,
+            discoveryDocs: [DRIVE_DISCOVERY_DOC]
+          });
+          isGapiLoaded = true;
+        } catch (err) {
+          console.error('Failed to init GAPI client:', err);
+        }
       });
 
       driveTokenClient = google.accounts.oauth2.initTokenClient({
         client_id: GOOGLE_CLIENT_ID,
         scope: DRIVE_SCOPES,
-        callback: (response) => {
+        callback: async (response) => {
           if (response.error) {
             console.error('Google Auth Error:', response);
             return;
           }
+
+          // Attach received access token to gapi client
+          gapi.client.setToken(response);
+
           document.getElementById('btn-drive-connect').classList.add('hidden');
           document.getElementById('btn-drive-refresh').classList.remove('hidden');
-          fetchDriveMediaFiles();
+          
+          await fetchDriveMediaFiles();
         }
       });
     });
@@ -480,10 +495,10 @@
         });
 
         statusMsg.classList.add('hidden');
-        const files = response.result.files;
+        const files = response?.result?.files;
 
         if (!files || files.length === 0) {
-          statusMsg.textContent = 'No surveillance media found in Drive.';
+          statusMsg.textContent = 'No photos found in Drive matching filter.';
           statusMsg.classList.remove('hidden');
           return;
         }
